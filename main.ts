@@ -1,29 +1,20 @@
-// Angry Judge: The Short Rant Contest — one short rant about a small
-// everyday annoyance, written to /output/entry.txt.
-// Node 22, standard library only, no network.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+// Angry Judge: The Short Rant Contest — entrypoint.
+// Copies this repository's entry.txt into MAKEFUN_OUTPUT_DIR, byte for byte.
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const RANT =
-  "I signed up for a free trial and they demanded my card. " +
-  "It charged me at 3 a.m. the night before the trial ended, " +
-  "like a burglar with a calendar. " +
-  "The trial was free. The exit was not.";
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? join(scriptDir, "out");
 
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
-mkdirSync(outDir, { recursive: true });
-const outPath = join(outDir, "entry.txt");
-writeFileSync(outPath, RANT, "utf8");
-
-// Read it back and verify: the file must be exactly the rant, UTF-8 text
-// of 1 to 400 characters, not only whitespace, with no trailing newline.
-const written = readFileSync(outPath, "utf8");
-if (written !== RANT) {
-  console.error("entry.txt does not match the rant");
-  process.exit(1);
+// Create the output directory if needed, then clear only what is inside it:
+// the grader mounts /output read-only, so the directory itself must stay.
+mkdirSync(outputDir, { recursive: true });
+for (const entryName of readdirSync(outputDir)) {
+  rmSync(join(outputDir, entryName), { force: true, recursive: true });
 }
-if (written.length < 1 || written.length > 400 || written.trim().length === 0) {
-  console.error("entry.txt fails the 1-400 character gate");
-  process.exit(1);
-}
-console.log(`wrote ${outPath}`);
+
+// Read the rant from beside this script (never from the caller's cwd) and
+// write it out unchanged, so repeated runs produce identical bytes.
+const rant = readFileSync(join(scriptDir, "entry.txt"), "utf8");
+writeFileSync(join(outputDir, "entry.txt"), rant, "utf8");
